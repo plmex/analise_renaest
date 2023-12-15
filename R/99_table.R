@@ -8,12 +8,6 @@ tabela1 <- read_csv("data/tabela1.csv")
 tabela2 <- read_csv("data/tabela2.csv")
 tabela3 <- read_csv("data/tabela3.csv")
 
-# function ----------------------------------------------------------------
-
-fix_percentage <- function(perc_character) {
-  as.numeric(gsub(",", ".", gsub("%", "", perc_character))) / 100
-}
-
 # arrange -----------------------------------------------------------------
 
 tab1_fix <- tabela1 |>
