@@ -9,11 +9,17 @@ calc_na <- function(df, uf = "BR") {
   }
   na_count <- colSums(is.na(df))
   na_table <- tibble(var = names(na_count), na_qtde = na_count)
-  na_table %>% mutate(pna = na_qtde / nrow(df), uf = uf)
+  na_table %>%
+    mutate(pna = na_qtde / nrow(df), uf = uf)
 }
 
 calc_cv <- function(df, uf = "BR") {
-  if (uf != "BR") {
+  if (uf == "AP") {
+    df <- df %>%
+      filter(uf_acidente == uf, ano_acidente != 2023) %>%
+      count(uf_acidente, ano_acidente) |>
+      add_row(uf_acidente = "AP", ano_acidente = 2018, n = 0, .before = TRUE)
+  } else if (uf != "BR") {
     df <- df %>%
       filter(uf_acidente == uf, ano_acidente != 2023) %>%
       count(uf_acidente, ano_acidente)

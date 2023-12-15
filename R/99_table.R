@@ -17,25 +17,37 @@ fix_percentage <- function(perc_character) {
 # arrange -----------------------------------------------------------------
 
 tab1_fix <- tabela1 |>
-  clean_names() |>
-  mutate(
-    cv = fix_percentage(cv),
-    x2018 = as.numeric(x2018),
-    regiao = case_match(
-      uf_ano,
-      c("AC", "AM", "AP", "PA", "RO", "RR", "TO") ~ "Norte",
-      c("AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE") ~ "Nordeste",
-      c("DF", "GO", "MT", "MS") ~ "Centro-oeste",
-      c("ES", "MG", "RJ", "SP") ~ "Sudeste",
-      c("PR", "RS", "SC") ~ "Sul",
-      .default = "Total"
-    )
-  )
+  select(-media) |>
+  pivot_wider(names_from = ano_acidente, values_from = n) |>
+  janitor::clean_names() |>
+  mutate(regiao = case_match(
+    uf_acidente,
+    c("AC", "AM", "AP", "PA", "RO", "RR", "TO") ~ "Norte",
+    c("AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE") ~ "Nordeste",
+    c("DF", "GO", "MT", "MS") ~ "Centro-oeste",
+    c("ES", "MG", "RJ", "SP") ~ "Sudeste",
+    c("PR", "RS", "SC") ~ "Sul",
+    .default = "Total"
+  ))
+
 
 tab2_fix <- tabela2 |>
-  clean_names() |>
+  filter(
+    var %in% c(
+      "lim_velocidade",
+      "cep_acidente",
+      "longitude_acidente",
+      "latitude_acidente",
+      "cond_pista",
+      "tp_pavimento",
+      "cond_meteorologica",
+      "bairro_acidente"
+    )
+  ) |>
+  select(-na_qtde) |>
+  group_by(uf) |>
+  pivot_wider(names_from = var, values_from = pna) |>
   mutate(
-    across(-uf, fix_percentage),
     regiao = case_match(
       uf,
       c("AC", "AM", "AP", "PA", "RO", "RR", "TO") ~ "Norte",
@@ -45,28 +57,70 @@ tab2_fix <- tabela2 |>
       c("PR", "RS", "SC") ~ "Sul",
       .default = "Total"
     )
-  )
+  ) |>
+  rowwise() |>
+  mutate(
+    media = mean(
+      c(
+        cep_acidente,
+        bairro_acidente,
+        latitude_acidente,
+        longitude_acidente,
+        cond_pista,
+        tp_pavimento,
+        lim_velocidade,
+        cond_meteorologica
+      )
+    )
+  ) |>
+  ungroup()
 
 tab3_fix <- tabela3 |>
-  clean_names() |>
+  filter(
+    var %in% c(
+      "equip_seguranca",
+      "susp_alcool",
+      "gravidade_lesao",
+      "faixa_idade",
+      "tp_envolvido",
+      "genero"
+    )
+  ) |>
+  select(-na_qtde) |>
+  group_by(uf) |>
+  pivot_wider(names_from = var, values_from = pna) |>
   mutate(
-    across(-uf_var, fix_percentage),
     regiao = case_match(
-      uf_var,
+      uf,
       c("AC", "AM", "AP", "PA", "RO", "RR", "TO") ~ "Norte",
       c("AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE") ~ "Nordeste",
       c("DF", "GO", "MT", "MS") ~ "Centro-oeste",
       c("ES", "MG", "RJ", "SP") ~ "Sudeste",
       c("PR", "RS", "SC") ~ "Sul",
       .default = "Total"
-    ),
-    faixa_idade = if_else(is.na(faixa_idade), 0.0728, faixa_idade)
-  )
+    )
+  ) |>
+  rowwise() |>
+  mutate(
+    media = mean(
+      c(
+        faixa_idade,
+        genero,
+        tp_envolvido,
+        gravidade_lesao,
+        equip_seguranca,
+        susp_alcool
+      )
+    )
+  ) |>
+  ungroup()
 
 # gt ----------------------------------------------------------------------
 
-gt_tab1 <- tab1_fix |>
-  gt(rowname_col = "uf_ano", groupname_col = "regiao") |>
+gt_tab1 <-
+  tab1_fix |>
+  select(regiao, uf_acidente, x2018:x2022, cv) |>
+  gt(rowname_col = "uf_acidente", groupname_col = "regiao") |>
   fmt_number(
     columns = x2018:x2022,
     sep_mark = ".",
@@ -88,7 +142,7 @@ gt_tab1 <- tab1_fix |>
     cv = "CV"
   ) |>
   cols_width(
-    uf_ano ~ px(50),
+    uf_acidente ~ px(50),
     everything() ~ px(80)
   ) |>
   data_color(
@@ -97,16 +151,18 @@ gt_tab1 <- tab1_fix |>
   ) |>
   tab_footnote(
     locations = cells_column_labels(columns = cv),
-    footnote = "Na ausência de dados, o CV considera o valor 'zero'"
+    footnote = "Na ausência de dados, o CV considera o valor 'zero', ocorrido em 2018 no Amapá"
   )
 
 gt_tab2 <- tab2_fix |>
+  bind_rows(slice_head(tab2_fix)) |>
+  slice(-1) |>
   gt(
     rowname_col = "uf",
     groupname_col = "regiao"
   ) |>
   fmt_percent(
-    columns = lim_velocidade:media_geral_uf,
+    columns = cond_meteorologica:media,
     dec_mark = ",",
     sep_mark = "."
   ) |>
@@ -117,13 +173,13 @@ gt_tab2 <- tab2_fix |>
     latitude_acidente = "lat_<br>acidente",
     cond_pista = "cond_<br>pista",
     tp_pavimento = "tp_pav",
-    cond_metereologica = "cond_<br>metereo",
+    cond_meteorologica = "cond_<br>metereo",
     bairro_acidente = "bairro_<br>acidente",
-    media_geral_uf = "Média",
+    media = "Média",
     .fn = md
   ) |>
   cols_width(
-    lim_velocidade:media_geral_uf ~ px(75)
+    lim_velocidade:media ~ px(75)
   ) |>
   data_color(
     columns = -uf,
@@ -131,13 +187,16 @@ gt_tab2 <- tab2_fix |>
     domain = c(0, 1)
   )
 
-gt_tab3 <- tab3_fix |>
+gt_tab3 <-
+  tab3_fix |>
+  bind_rows(slice_head(tab3_fix)) |>
+  slice(-1) |>
   gt(
-    rowname_col = "uf_var",
+    rowname_col = "uf",
     groupname_col = "regiao"
   ) |>
   fmt_percent(
-    columns = equip_seguranca:media_uf,
+    columns = faixa_idade:media,
     dec_mark = ",",
     sep_mark = "."
   ) |>
@@ -147,12 +206,12 @@ gt_tab3 <- tab3_fix |>
     gravidade_lesao = "gravidade_<br>lesao",
     faixa_idade = "faixa_<br>idade",
     tp_envolvido = "tp_<br>envolvido",
-    media_uf = "Média",
+    media = "Média",
     .fn = md
   ) |>
-  cols_width(equip_seguranca:media_uf ~ px(75)) |>
+  cols_width(equip_seguranca:media ~ px(75)) |>
   data_color(
-    columns = -uf_var,
+    columns = -uf,
     palette = "Blues",
     domain = c(0, 1)
   )

@@ -97,7 +97,7 @@ plot_pna_mean <- function(df) {
       base_size = 26,
       base_line_size = 0.5
     ) +
-    labs(x = '', y ='', title = 'Campos não informados') +
+    labs(x = '', y = '', title = 'Campos não informados') +
     theme(
       plot.background = element_rect(fill = "white", color = "white"),
       plot.title = element_text(size = 18)
@@ -119,7 +119,7 @@ plot_pna_colisao <- function(df) {
       base_size = 26,
       base_line_size = 0.5
     ) +
-    labs(x = '', y ='', title = 'Colisões não especificadas') +
+    labs(x = '', y = '', title = 'Colisões não especificadas') +
     theme(
       plot.background = element_rect(fill = "white", color = "white"),
       plot.title = element_text(size = 18)
